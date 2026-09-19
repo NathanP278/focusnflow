@@ -110,18 +110,6 @@
       </div>
     </header>
 
-    <!-- Mobile View Switcher (Visible only on mobile) -->
-    <nav class="mobile-view-tabs" id="mobileViewTabs" aria-label="Mobile workspace view">
-      <button class="mobile-view-tab active" data-view="timer" id="tabViewTimer">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
-        <span>Timer</span>
-      </button>
-      <button class="mobile-view-tab" data-view="tasks" id="tabViewTasks">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-        <span>Tasks &amp; Log</span>
-      </button>
-    </nav>
-
     <!-- Expansive 2-Column Studio Grid (No Dead Space) -->
     <div class="workspace-grid" id="workspaceGrid">
       <!-- Left Panel: Focus Sanctuary & Ambient Audio -->
@@ -323,6 +311,18 @@
       <span class="shortcut-divider">·</span>
       <span class="shortcut-item"><kbd>P</kbd> PiP</span>
     </footer>
+
+    <!-- Mobile View Switcher — fixed bottom tab bar (visible only on mobile) -->
+    <nav class="mobile-view-tabs" id="mobileViewTabs" aria-label="Mobile workspace view">
+      <button class="mobile-view-tab active" data-view="timer" id="tabViewTimer">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+        <span>Timer</span>
+      </button>
+      <button class="mobile-view-tab" data-view="tasks" id="tabViewTasks">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        <span>Tasks</span>
+      </button>
+    </nav>
   </main>
 
   <!-- Floating Undo Toast Pill -->

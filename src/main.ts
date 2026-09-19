@@ -319,17 +319,120 @@ function initApp(): void {
     workspaceGrid.dataset.mobileView = 'timer';
   }
 
+  // ── Mobile: switch view with animation + haptic ─────────────────────
+  const switchMobileView = (view: 'timer' | 'tasks'): void => {
+    mobileViewTabs.forEach((t) => t.classList.toggle('active', t.dataset.view === view));
+    if (workspaceGrid) {
+      workspaceGrid.dataset.mobileView = view;
+      const entering = workspaceGrid.querySelector<HTMLElement>(
+        view === 'timer' ? '.focus-panel' : '.productivity-panel'
+      );
+      if (entering) {
+        entering.classList.remove('panel-enter');
+        void entering.offsetWidth; // force reflow
+        entering.classList.add('panel-enter');
+        entering.addEventListener('animationend', () => entering.classList.remove('panel-enter'), { once: true });
+      }
+    }
+    navigator.vibrate?.([6]);
+  };
+
   mobileViewTabs.forEach((tab) => {
     tab.addEventListener('click', () => {
       sound.unlock();
       sound.playTick();
-      const view = tab.dataset.view || 'timer';
-      mobileViewTabs.forEach((t) => t.classList.toggle('active', t === tab));
-      if (workspaceGrid) {
-        workspaceGrid.dataset.mobileView = view;
-      }
+      const view = (tab.dataset.view || 'timer') as 'timer' | 'tasks';
+      switchMobileView(view);
     });
   });
+
+  // ── Mobile: swipe gesture between Timer/Tasks ────────────────────────
+  const setupSwipeGesture = (
+    target: HTMLElement,
+    onLeft: () => void,
+    onRight: () => void
+  ): void => {
+    let startX = 0, startY = 0, tracking = false;
+    target.addEventListener('pointerdown', (e) => {
+      if ((e.target as HTMLElement).closest('button, input, select, a, [role="slider"]')) return;
+      startX = e.clientX; startY = e.clientY; tracking = true;
+    }, { passive: true });
+    target.addEventListener('pointermove', (e) => {
+      if (!tracking) return;
+      if (Math.abs(e.clientY - startY) > Math.abs(e.clientX - startX) && Math.abs(e.clientY - startY) > 12)
+        tracking = false;
+    }, { passive: true });
+    target.addEventListener('pointerup', (e) => {
+      if (!tracking) return; tracking = false;
+      const dx = e.clientX - startX, dy = e.clientY - startY;
+      if (Math.abs(dx) < 50 || Math.abs(dy) > Math.abs(dx) * 0.65) return;
+      dx < 0 ? onLeft() : onRight();
+    }, { passive: true });
+  };
+
+  const swipeMq = window.matchMedia('(max-width: 680px)');
+  if (swipeMq.matches && workspaceGrid) {
+    setupSwipeGesture(
+      workspaceGrid,
+      () => switchMobileView('tasks'),
+      () => switchMobileView('timer'),
+    );
+  }
+
+  // ── Mobile: animated sheet close ─────────────────────────────────────
+  const closeMobileSheet = (dialog: HTMLDialogElement): void => {
+    if (!window.matchMedia('(max-width: 680px)').matches) {
+      dialog.close();
+      return;
+    }
+    const card = dialog.querySelector<HTMLElement>('.modal-card');
+    if (!card) {
+      dialog.close();
+      return;
+    }
+    let closed = false;
+    const finish = () => {
+      if (closed) return;
+      closed = true;
+      card.style.animation = '';
+      dialog.close();
+    };
+    card.style.animation = 'sheetDown 180ms var(--ease-in-out) forwards';
+    card.addEventListener('animationend', finish, { once: true });
+    setTimeout(finish, 220);
+  };
+
+  // ── Mobile: bottom sheet drag-to-dismiss ────────────────────────────
+  const setupBottomSheetDrag = (dialog: HTMLDialogElement): void => {
+    const card = dialog.querySelector<HTMLElement>('.modal-card');
+    if (!card) return;
+    let startY = 0, currentY = 0, dragging = false;
+    card.addEventListener('pointerdown', (e) => {
+      if (e.offsetY > 60) return;
+      dragging = true; startY = e.clientY;
+      card.style.transition = 'none'; card.style.willChange = 'transform';
+    }, { passive: true });
+    window.addEventListener('pointermove', (e) => {
+      if (!dragging) return;
+      currentY = Math.max(0, e.clientY - startY);
+      card.style.transform = `translateY(${currentY}px)`;
+    }, { passive: true });
+    window.addEventListener('pointerup', () => {
+      if (!dragging) return; dragging = false;
+      card.style.willChange = ''; card.style.transition = '';
+      if (currentY > 120) {
+        closeMobileSheet(dialog);
+      } else {
+        card.style.transform = '';
+      }
+      currentY = 0;
+    });
+  };
+
+  const sheetMq = window.matchMedia('(max-width: 680px)');
+  if (sheetMq.matches) {
+    document.querySelectorAll<HTMLDialogElement>('dialog').forEach(setupBottomSheetDrag);
+  }
 
   const unlockAudioOnInteraction = () => {
     sound.unlock();
@@ -1101,9 +1204,12 @@ function initApp(): void {
       sound.playPop();
       const id = target.dataset.id;
       if (id) {
-        if (target.checked && particleEngine) {
-          const rect = target.getBoundingClientRect();
-          particleEngine.triggerBurst(rect.left + 10, rect.top + 10, 20);
+        if (target.checked) {
+          navigator.vibrate?.([10, 30, 10]); // double pulse on completion
+          if (particleEngine) {
+            const rect = target.getBoundingClientRect();
+            particleEngine.triggerBurst(rect.left + 10, rect.top + 10, 20);
+          }
         }
         store.set((s) => ({
           tasks: s.tasks.map((t) => (t.id === id ? { ...t, completed: target.checked } : t)),
@@ -1257,6 +1363,7 @@ function initApp(): void {
   // Daily Stats Badge click -> Open Stats Summary Modal
   dailyStatsBadge?.addEventListener('click', () => {
     sound.playTick();
+    navigator.vibrate?.([4]);
     refreshStats();
     document.body.style.overflow = 'hidden';
     statsDialog?.showModal();
@@ -1264,21 +1371,22 @@ function initApp(): void {
 
   closeStatsBtn?.addEventListener('click', () => {
     sound.playTick();
-    statsDialog?.close();
+    if (statsDialog) closeMobileSheet(statsDialog);
   });
 
   okStatsBtn?.addEventListener('click', () => {
     sound.playTick();
-    statsDialog?.close();
+    if (statsDialog) closeMobileSheet(statsDialog);
   });
 
   statsDialog?.addEventListener('click', (e) => {
-    if (e.target === statsDialog) statsDialog.close();
+    if (e.target === statsDialog && statsDialog) closeMobileSheet(statsDialog);
   });
 
   // Settings Dialog
   const openSettings = () => {
     sound.playTick();
+    navigator.vibrate?.([4]);
     document.body.style.overflow = 'hidden';
     const { settings } = store.get();
     if (workDurationInput) workDurationInput.value = String(settings.workMin);
@@ -1306,7 +1414,7 @@ function initApp(): void {
 
   const closeSettings = () => {
     sound.playTick();
-    settingsDialog?.close();
+    if (settingsDialog) closeMobileSheet(settingsDialog);
   };
 
   paletteSwatches.forEach((swatch) => {
@@ -1394,18 +1502,19 @@ function initApp(): void {
 
     pipEngine?.render(store.get());
 
-    settingsDialog?.close();
+    if (settingsDialog) closeMobileSheet(settingsDialog);
   });
 
   // Shortcuts Dialog Wiring
   const openShortcuts = () => {
     sound.playTick();
+    navigator.vibrate?.([4]);
     document.body.style.overflow = 'hidden';
     shortcutsDialog?.showModal();
   };
   const closeShortcuts = () => {
     sound.playTick();
-    shortcutsDialog?.close();
+    if (shortcutsDialog) closeMobileSheet(shortcutsDialog);
   };
 
   shortcutsBtn?.addEventListener('click', openShortcuts);

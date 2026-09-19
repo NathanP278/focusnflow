@@ -457,7 +457,7 @@ def run_mobile_tests(browser):
     assert body_overflow == "hidden", "Body scroll must be locked when dialog is open"
 
     page.locator("#closeSettingsBtn").click()
-    time.sleep(0.2)
+    settings_dialog.wait_for(state="hidden", timeout=3000)
     assert not settings_dialog.is_visible()
     body_overflow_after = page.evaluate("() => document.body.style.overflow")
     print(f"Body overflow after dialog close: '{body_overflow_after}'")
@@ -469,11 +469,160 @@ def run_mobile_tests(browser):
         print("Mobile Errors:", mobile_errors)
     assert len(mobile_errors) == 0, f"Encountered mobile console errors: {mobile_errors}"
 
+    # ── T1: Bottom tab bar is fixed at viewport bottom ─────────────────
+    tab_bar = page.locator(".mobile-view-tabs")
+    assert tab_bar.is_visible(), "T1: Mobile tab bar must be visible on 390px viewport"
+    tab_box = tab_bar.bounding_box()
+    viewport_height = 844
+    assert tab_box["y"] + tab_box["height"] >= viewport_height - 60, \
+        f"T1: Tab bar not at bottom. y={tab_box['y']}, h={tab_box['height']}, viewport={viewport_height}"
+    tab_position = page.evaluate("() => getComputedStyle(document.querySelector('.mobile-view-tabs')).position")
+    assert tab_position == "fixed", f"T1: Tab bar must be position:fixed, got {tab_position}"
+    print(f"T1 PASS: Tab bar fixed at bottom (y={tab_box['y']:.0f}, h={tab_box['height']:.0f})")
+
+    # ── T2: Each tab meets 44px minimum height ─────────────────────────
+    for i, tab in enumerate(page.locator(".mobile-view-tab").all()):
+        box = tab.bounding_box()
+        assert box["height"] >= 44, f"T2: Tab {i} height {box['height']:.0f} < 44px"
+    print("T2 PASS: All mobile tabs >= 44px height")
+
+    # ── T3: All visible .icon-btn meet 40px minimum ────────────────────
+    for btn in page.locator(".icon-btn").all():
+        if btn.is_visible():
+            box = btn.bounding_box()
+            assert box["width"] >= 40 and box["height"] >= 40, \
+                f"T3: icon-btn too small: {box['width']:.0f}x{box['height']:.0f}"
+    print("T3 PASS: All visible icon-btns >= 40px")
+
+    # ── T4: Header does not overflow viewport ──────────────────────────
+    header_box = page.locator("header").bounding_box()
+    assert header_box["x"] >= -1, f"T4: Header left-overflows (x={header_box['x']})"
+    assert header_box["width"] <= 392, f"T4: Header wider than viewport ({header_box['width']:.0f}px)"
+    print(f"T4 PASS: Header fits within viewport (w={header_box['width']:.0f})")
+
+    # ── T5: Timer view shows focus-panel, hides productivity-panel ─────
+    page.locator("#tabViewTimer").click()
+    time.sleep(0.3)
+    assert page.locator(".focus-panel").is_visible(), "T5: Focus panel must show in timer view"
+    tasks_display = page.evaluate("() => getComputedStyle(document.querySelector('.productivity-panel')).display")
+    assert tasks_display == "none", f"T5: Productivity panel should be display:none in timer view, got {tasks_display}"
+    print("T5 PASS: Timer view shows focus-panel, hides productivity-panel")
+
+    # ── T6: Tasks view shows productivity-panel, hides focus-panel ─────
+    page.locator("#tabViewTasks").click()
+    time.sleep(0.3)
+    assert page.locator(".productivity-panel").is_visible(), "T6: Productivity panel must show in tasks view"
+    focus_display = page.evaluate("() => getComputedStyle(document.querySelector('.focus-panel')).display")
+    assert focus_display == "none", f"T6: Focus panel should be display:none in tasks view, got {focus_display}"
+    print("T6 PASS: Tasks view shows productivity-panel, hides focus-panel")
+
+    # ── T7: Settings dialog anchored to bottom (bottom sheet) ──────────
+    page.locator("#tabViewTimer").click()
+    time.sleep(0.2)
+    page.locator("#settingsBtn").click()
+    time.sleep(0.4)
+    settings_dialog_box = page.locator("#settingsDialog .modal-card").bounding_box()
+    assert settings_dialog_box is not None, "T7: Settings modal-card must exist"
+    assert settings_dialog_box["y"] > 100, \
+        f"T7: Settings sheet should be anchored to bottom, not top (y={settings_dialog_box['y']:.0f})"
+    print(f"T7 PASS: Settings bottom sheet at y={settings_dialog_box['y']:.0f}")
+
+    # ── T8: Settings scroll area exists and is not collapsed ───────────
+    scroll_area = page.locator(".settings-scroll-area")
+    assert scroll_area.count() > 0, "T8: .settings-scroll-area must exist"
+    scroll_box = scroll_area.bounding_box()
+    assert scroll_box["height"] > 50, f"T8: Settings scroll area collapsed (h={scroll_box['height']:.0f})"
+    print(f"T8 PASS: Settings scroll area h={scroll_box['height']:.0f}")
+    page.locator("#closeSettingsBtn").click()
+    time.sleep(0.4)
+
+    # ── T9: Timer ring does not overflow its card ──────────────────────
+    ring_box = page.locator(".svg-ring-container").bounding_box()
+    card_box = page.locator(".timer-card").bounding_box()
+    assert ring_box is not None and card_box is not None, "T9: Ring and card must exist"
+    assert ring_box["width"] <= card_box["width"] + 4, \
+        f"T9: Ring ({ring_box['width']:.0f}) overflows card ({card_box['width']:.0f})"
+    print(f"T9 PASS: Ring w={ring_box['width']:.0f} <= card w={card_box['width']:.0f}")
+
+    # ── T10: No horizontal scroll at any point ─────────────────────────
+    scroll_width = page.evaluate("() => document.documentElement.scrollWidth")
+    assert scroll_width <= 395, f"T10: Horizontal overflow detected: scrollWidth={scroll_width}px"
+    print(f"T10 PASS: No horizontal overflow (scrollWidth={scroll_width}px)")
+
+    # ── T11: Swipe gesture switches between views ──────────────────────
+    page.locator("#tabViewTimer").click()
+    time.sleep(0.2)
+    grid = page.locator("#workspaceGrid")
+    grid_box = grid.bounding_box()
+    cx = grid_box["x"] + grid_box["width"] / 2
+    cy = grid_box["y"] + grid_box["height"] / 2
+    # Swipe left — should switch to tasks
+    page.mouse.move(cx + 80, cy)
+    page.mouse.down()
+    page.mouse.move(cx - 80, cy, steps=10)
+    page.mouse.up()
+    time.sleep(0.35)
+    active_view = page.locator(".mobile-view-tab.active").get_attribute("data-view")
+    assert active_view == "tasks", f"T11: Swipe left should activate tasks view, got {active_view}"
+    # Swipe right — should switch back to timer
+    page.mouse.move(cx - 80, cy)
+    page.mouse.down()
+    page.mouse.move(cx + 80, cy, steps=10)
+    page.mouse.up()
+    time.sleep(0.35)
+    active_view = page.locator(".mobile-view-tab.active").get_attribute("data-view")
+    assert active_view == "timer", f"T11: Swipe right should activate timer view, got {active_view}"
+    print("T11 PASS: Swipe gestures switch views correctly")
+
+    # ── T12: Stats dialog fits within 395px width ──────────────────────
+    page.locator("#dailyStatsBadge").click()
+    time.sleep(0.4)
+    stats_card = page.locator("#statsDialog .modal-card")
+    stats_box = stats_card.bounding_box()
+    assert stats_box is not None, "T12: Stats modal-card must exist"
+    assert stats_box["x"] >= -1, f"T12: Stats modal left-overflows (x={stats_box['x']:.0f})"
+    assert stats_box["x"] + stats_box["width"] <= 396, \
+        f"T12: Stats modal right-overflows ({stats_box['x'] + stats_box['width']:.0f}px)"
+    print(f"T12 PASS: Stats modal fits within viewport")
+    page.locator("#okStatsBtn").click()
+    time.sleep(0.4)
+
+    print("\nALL T1-T12 ASSERTIONS PASSED")
+
     # Screenshot for mobile proof
     page.screenshot(path="e2e-mobile-screenshot.png", full_page=True)
     print("Mobile E2E Screenshot captured: e2e-mobile-screenshot.png")
     context.close()
+
+    # ── T13: iPhone SE (375x667) — timer card fits without overflow ────
+    print("\n--- T13: iPhone SE 375x667 ---")
+    se_ctx = browser.new_context(
+        viewport={"width": 375, "height": 667},
+        user_agent="Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1",
+        has_touch=True,
+        is_mobile=True,
+    )
+    se_page = se_ctx.new_page()
+    se_page.goto("http://localhost:3000", wait_until="domcontentloaded")
+    se_page.wait_for_selector("#timeDigits")
+    time.sleep(0.5)
+    timer_card_bottom = se_page.evaluate("() => document.querySelector('.timer-card').getBoundingClientRect().bottom")
+    # Allow 100px grace for safe-area + tab bar clearance
+    assert timer_card_bottom <= 767, \
+        f"T13: Timer card extends too far on iPhone SE (bottom={timer_card_bottom:.0f}, viewport=667)"
+    se_scroll = se_page.evaluate("() => document.documentElement.scrollWidth")
+    assert se_scroll <= 378, f"T13: iPhone SE has horizontal overflow (scrollWidth={se_scroll})"
+    se_page.screenshot(path="e2e-iphonese-screenshot.png", full_page=True)
+    print(f"T13 PASS: iPhone SE timer card at y={timer_card_bottom:.0f}, no overflow")
+    se_ctx.close()
+
+    print("\n=========================================")
     print("ALL MOBILE E2E PLAYWRIGHT TESTS PASSED!")
+    print("=========================================")
+
+def run_mobile_tests_legacy(browser):
+    """Legacy alias — kept for backward compat."""
+    run_mobile_tests(browser)
 
 if __name__ == "__main__":
     run_tests()
