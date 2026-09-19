@@ -1129,8 +1129,9 @@ function initApp(): void {
     }
   });
 
-  // Zen Mode Toggle
+  // Zen Mode Toggle (Desktop only)
   zenToggleBtn?.addEventListener('click', () => {
+    if (window.matchMedia('(max-width: 680px)').matches) return;
     sound.playTick();
     store.set((prev) => ({ zenMode: !prev.zenMode }));
   });
@@ -1612,6 +1613,7 @@ function initApp(): void {
       switchMode(next);
     } else if (e.code === 'KeyZ') {
       e.preventDefault();
+      if (window.matchMedia('(max-width: 680px)').matches) return;
       sound.playTick();
       store.set((prev) => ({ zenMode: !prev.zenMode }));
     } else if (e.code === 'KeyT') {

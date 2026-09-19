@@ -283,12 +283,12 @@ body {
   position: relative;
   z-index: var(--z-base);
   width: 100%;
-  max-width: 1280px;
+  max-width: 1300px;
   min-height: 100dvh;
-  padding: max(0.75rem, env(safe-area-inset-top)) max(1.25rem, env(safe-area-inset-right)) max(1.5rem, env(safe-area-inset-bottom)) max(1.25rem, env(safe-area-inset-left));
+  padding: max(1.1rem, env(safe-area-inset-top)) max(1.75rem, env(safe-area-inset-right)) max(1.75rem, env(safe-area-inset-bottom)) max(1.75rem, env(safe-area-inset-left));
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 1.1rem;
   margin: 0 auto;
   transition: max-width var(--duration-slow) var(--ease-spring);
 }
@@ -298,16 +298,20 @@ header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.2rem 0;
+  padding: 0.25rem 0;
   gap: 0.75rem;
   flex-shrink: 0;
+  min-width: 0;
+  width: 100%;
 }
 
 .brand {
   display: flex;
   align-items: center;
-  gap: 0.8rem;
-  flex-shrink: 0;
+  gap: 0.75rem;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .brand-icon {
@@ -326,6 +330,8 @@ header {
   display: flex;
   flex-direction: column;
   line-height: 1;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .brand h1 {
@@ -334,6 +340,9 @@ header {
   letter-spacing: -0.035em;
   color: var(--text-main);
   line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .brand-tagline {
@@ -350,8 +359,9 @@ header {
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: flex-end;
+  flex-shrink: 0;
 }
 
 .header-primary-controls {
@@ -425,7 +435,7 @@ header {
   display: grid;
   grid-template-columns: 1fr 1fr;
   grid-template-rows: auto auto;
-  gap: 0.85rem;
+  gap: 1.25rem;
   align-items: stretch;
   flex: 1 0 auto;
   transition: grid-template-columns var(--duration-slow) var(--ease-out);
@@ -435,44 +445,47 @@ header {
   display: grid;
   grid-row: span 2;
   grid-template-rows: subgrid;
-  gap: 0.75rem;
+  gap: 1.25rem;
   min-width: 0;
 }
 
 .focus-panel { min-width: 0; }
 .productivity-panel { min-width: 0; }
 
-/* ── Zen Mode ────────────────────────────────────────────── */
-.app-container.zen-mode {
-  max-width: 640px;
-}
+/* ── Zen Mode (Desktop-scoped) ───────────────────────────── */
+/* ponytail: zen mode desktop-scoped; mobile tabs provide full-screen focus natively */
+@media (min-width: 681px) {
+  .app-container.zen-mode {
+    max-width: 640px;
+  }
 
-.app-container.zen-mode .productivity-panel,
-.app-container.zen-mode .ambient-card {
-  display: none;
-}
+  .app-container.zen-mode .productivity-panel,
+  .app-container.zen-mode .ambient-card {
+    display: none;
+  }
 
-.app-container.zen-mode .workspace-grid {
-  grid-template-columns: 1fr;
-  grid-template-rows: auto;
-}
+  .app-container.zen-mode .workspace-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto;
+  }
 
-.app-container.zen-mode .panel {
-  grid-row: span 1;
-  grid-template-rows: auto;
-}
+  .app-container.zen-mode .panel {
+    grid-row: span 1;
+    grid-template-rows: auto;
+  }
 
-.app-container.zen-mode .timer-card {
-  padding: 2.75rem 2rem;
-}
+  .app-container.zen-mode .timer-card {
+    padding: 2.75rem 2rem;
+  }
 
-.app-container.zen-mode .svg-ring-container {
-  width: clamp(260px, 40vw, 320px);
-  height: clamp(260px, 40vw, 320px);
-}
+  .app-container.zen-mode .svg-ring-container {
+    width: clamp(260px, 40vw, 320px);
+    height: clamp(260px, 40vw, 320px);
+  }
 
-.app-container.zen-mode .time-digits {
-  font-size: clamp(3.5rem, 8vw, 4.5rem);
+  .app-container.zen-mode .time-digits {
+    font-size: clamp(3.5rem, 8vw, 4.5rem);
+  }
 }
 
 /* ── Cards ───────────────────────────────────────────────── */
@@ -481,7 +494,7 @@ header {
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-card);
-  padding: 1.1rem 1.25rem;
+  padding: 1.35rem 1.5rem;
   transition:
     box-shadow var(--duration-base) var(--ease-out),
     border-color var(--duration-base) var(--ease-out),
@@ -539,7 +552,7 @@ header {
 .stats-badge-container {
   display: flex;
   justify-content: center;
-  margin-bottom: 1.1rem;
+  margin-bottom: 0.65rem;
 }
 
 .stats-badge {
@@ -548,15 +561,15 @@ header {
   gap: 0.45rem;
   background: var(--accent-subtle);
   border: 1px solid var(--accent-glow);
-  padding: 0.42rem 1rem;
+  padding: 0.28rem 0.85rem;
   border-radius: 99px;
-  font-size: 0.82rem;
+  font-size: 0.76rem;
   font-weight: 700;
   color: var(--accent-dark);
   letter-spacing: 0.01em;
   box-shadow: 0 2px 10px var(--accent-glow);
   cursor: pointer;
-  min-height: 44px;
+  min-height: 32px;
   transition:
     background var(--duration-base) var(--ease-out),
     border-color var(--duration-base) var(--ease-out),
@@ -595,11 +608,11 @@ header {
 .mode-nav {
   display: flex;
   background: var(--bg-subtle);
-  padding: 0.3rem;
+  padding: 0.25rem;
   border-radius: 99px;
   border: 1px solid var(--border-subtle);
-  margin-bottom: 1.1rem;
-  gap: 0.25rem;
+  margin-bottom: 0.65rem;
+  gap: 0.2rem;
 }
 
 .mode-btn {
@@ -607,9 +620,10 @@ header {
   background: transparent;
   border: none;
   color: var(--text-muted);
-  font-size: 0.86rem;
+  font-size: 0.82rem;
   font-weight: 700;
-  padding: 0.55rem 0.75rem;
+  padding: 0.38rem 0.7rem;
+  min-height: 32px;
   border-radius: 99px;
   cursor: pointer;
   transition:
@@ -651,9 +665,9 @@ header {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.65rem;
-  margin-bottom: 1.1rem;
-  font-size: 0.78rem;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.74rem;
   font-weight: 700;
   color: var(--text-muted);
 }
@@ -665,8 +679,8 @@ header {
 }
 
 .cycle-dot {
-  width: 9px;
-  height: 9px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background: var(--bg-subtle);
   border: 2px solid var(--border-medium);
@@ -711,8 +725,8 @@ header {
 
 .svg-ring-container {
   position: relative;
-  width: clamp(200px, 24vw, 248px);
-  height: clamp(200px, 24vw, 248px);
+  width: clamp(240px, 26vw, 290px);
+  height: clamp(240px, 26vw, 290px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -765,7 +779,7 @@ header {
 
 .time-digits {
   font-family: var(--font-mono);
-  font-size: clamp(2.8rem, 5.5vw, 3.75rem);
+  font-size: clamp(3.4rem, 6.2vw, 4.2rem);
   font-weight: 800;
   letter-spacing: -0.04em;
   font-variant-numeric: tabular-nums;
@@ -798,8 +812,8 @@ header {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  margin-top: 1.1rem;
+  gap: 0.4rem;
+  margin-top: 0.75rem;
 }
 
 .quick-adjust-btn {
@@ -807,12 +821,13 @@ header {
   border: 1px solid var(--border-subtle);
   color: var(--text-muted);
   font-family: var(--font-mono);
-  font-size: 0.78rem;
+  font-size: 0.74rem;
   font-weight: 700;
-  padding: 0.38rem 0.9rem;
+  padding: 0.25rem 0.75rem;
   border-radius: 99px;
   cursor: pointer;
-  min-height: 32px;
+  min-height: 28px;
+  position: relative;
   transition:
     background var(--duration-base) var(--ease-out),
     color var(--duration-base) var(--ease-out),
@@ -836,12 +851,12 @@ header {
 
 /* ── Active focus spotlight ──────────────────────────────── */
 .active-focus-container {
-  margin-top: 1.1rem;
+  margin-top: 0.65rem;
   width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-height: 44px;
+  min-height: 36px;
 }
 
 .active-focus-pill {
@@ -2236,6 +2251,13 @@ dialog::backdrop {
   }
 }
 
+/* Tablet & narrow desktop header */
+@media (max-width: 768px) {
+  .header-secondary-controls {
+    display: none;
+  }
+}
+
 /* Small tablet & Mobile landscape/portrait */
 @media (max-width: 680px) {
   /* ── Tab bar height token ─────────────────────────────── */
@@ -2328,11 +2350,100 @@ dialog::backdrop {
     100% { transform: scale(1.1); }
   }
 
-  /* ── App container bottom clearance for tab bar ───────── */
+  /* ── App container bottom clearance & mobile spacing ─── */
   .app-container {
+    padding-top: max(0.6rem, env(safe-area-inset-top));
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
     padding-bottom: calc(
       max(0.75rem, env(safe-area-inset-bottom)) + var(--tab-bar-height) + 0.75rem
     );
+    gap: 0.75rem;
+  }
+
+  /* Header mobile button prioritization */
+  .header-secondary-controls {
+    display: none;
+  }
+
+  #zenToggleBtn {
+    display: none !important;
+  }
+
+  #themeToggleBtn {
+    display: none;
+  }
+
+  /* Card padding on mobile */
+  .card {
+    padding: 1rem;
+    border-radius: var(--radius-lg);
+  }
+
+  /* Clutter reduction above timer on mobile */
+  .stats-badge-container {
+    margin-bottom: 0.45rem;
+  }
+
+  .stats-badge {
+    min-height: 28px;
+    padding: 0.22rem 0.7rem;
+    font-size: 0.72rem;
+  }
+
+  .mode-nav {
+    margin-bottom: 0.45rem;
+    padding: 0.2rem;
+  }
+
+  .mode-btn {
+    min-height: 32px;
+    padding: 0.32rem 0.5rem;
+    font-size: 0.76rem;
+  }
+
+  .cycle-bar {
+    margin-bottom: 0.5rem;
+    font-size: 0.7rem;
+    gap: 0.4rem;
+  }
+
+  /* Hero timer on mobile */
+  .svg-ring-container {
+    width: clamp(215px, 62vw, 255px);
+    height: clamp(215px, 62vw, 255px);
+  }
+
+  .time-digits {
+    font-size: clamp(3.1rem, 12vw, 3.7rem);
+  }
+
+  /* Sleek, compact quick adjust on mobile */
+  .quick-adjust-row {
+    margin-top: 0.5rem;
+    gap: 0.35rem;
+  }
+
+  .quick-adjust-btn {
+    min-height: 28px;
+    padding: 0.22rem 0.65rem;
+    font-size: 0.7rem;
+    position: relative;
+  }
+
+  .quick-adjust-btn::before {
+    content: '';
+    position: absolute;
+    inset: -8px;
+  }
+
+  .active-focus-container {
+    margin-top: 0.45rem;
+    min-height: 32px;
+  }
+
+  .controls-row {
+    margin-top: 0.65rem;
   }
 
   /* ── Undo toast clears tab bar ────────────────────────── */
@@ -2354,6 +2465,11 @@ dialog::backdrop {
 
   .workspace-grid[data-mobile-view="tasks"] .focus-panel {
     display: none !important;
+  }
+
+  /* Failsafe: Tasks view is never hidden on mobile by zenMode state */
+  .workspace-grid[data-mobile-view="tasks"] .productivity-panel {
+    display: block !important;
   }
 
   /* ── Panel enter animation ────────────────────────────── */
@@ -2485,12 +2601,12 @@ dialog::backdrop {
 /* Mobile */
 @media (max-width: 520px) {
   .app-container {
-    padding-left: max(0.75rem, env(safe-area-inset-left));
-    padding-right: max(0.75rem, env(safe-area-inset-right));
+    padding-left: max(0.85rem, env(safe-area-inset-left));
+    padding-right: max(0.85rem, env(safe-area-inset-right));
     padding-bottom: calc(
       max(0.75rem, env(safe-area-inset-bottom)) + var(--tab-bar-height) + 0.75rem
     );
-    gap: 0.6rem;
+    gap: 0.65rem;
   }
 
   .header-secondary-controls {
@@ -2530,12 +2646,12 @@ dialog::backdrop {
   }
 
   .time-digits {
-    font-size: clamp(2.6rem, 11vw, 3.2rem);
+    font-size: clamp(3rem, 12vw, 3.6rem);
   }
 
   .svg-ring-container {
-    width: clamp(190px, 55vw, 230px);
-    height: clamp(190px, 55vw, 230px);
+    width: clamp(210px, 60vw, 250px);
+    height: clamp(210px, 60vw, 250px);
   }
 
   .theme-palette-picker {
@@ -2551,15 +2667,15 @@ dialog::backdrop {
   }
 
   .quick-adjust-btn {
-    padding: 0.5rem 0.9rem;
-    min-height: 48px;
-    font-size: 0.76rem;
+    padding: 0.22rem 0.65rem;
+    min-height: 28px;
+    font-size: 0.7rem;
   }
 
   .mode-btn {
-    font-size: 0.8rem;
-    padding: 0.5rem 0.6rem;
-    min-height: 44px;
+    font-size: 0.78rem;
+    padding: 0.35rem 0.55rem;
+    min-height: 34px;
   }
 
   .filter-tab {
@@ -2593,7 +2709,7 @@ dialog::backdrop {
   }
 
   .card {
-    padding: 0.9rem 1rem;
+    padding: 0.85rem 0.95rem;
     border-radius: var(--radius-lg);
   }
 
@@ -2697,9 +2813,9 @@ dialog::backdrop {
   }
 
   .quick-adjust-btn {
-    padding: 0.4rem 0.6rem;
-    min-height: 42px;
-    font-size: 0.72rem;
+    padding: 0.2rem 0.55rem;
+    min-height: 28px;
+    font-size: 0.68rem;
   }
 
   .controls-row {
@@ -2710,32 +2826,32 @@ dialog::backdrop {
 /* ── Height-constrained phones (iPhone SE etc.) ───────────── */
 @media (max-width: 520px) and (max-height: 700px) {
   .svg-ring-container {
-    width: clamp(160px, 46vw, 195px);
-    height: clamp(160px, 46vw, 195px);
+    width: clamp(165px, 46vw, 195px);
+    height: clamp(165px, 46vw, 195px);
   }
 
   .time-digits {
-    font-size: clamp(2.2rem, 9.5vw, 2.8rem);
+    font-size: clamp(2.3rem, 9.5vw, 2.85rem);
   }
 
   .card {
-    padding: 0.7rem 0.85rem;
+    padding: 0.75rem 0.85rem;
   }
 
   .stats-badge-container {
-    margin-bottom: 0.6rem;
+    margin-bottom: 0.4rem;
   }
 
   .mode-nav {
-    margin-bottom: 0.6rem;
+    margin-bottom: 0.4rem;
   }
 
   .quick-adjust-row {
-    margin-top: 0.6rem;
+    margin-top: 0.45rem;
   }
 
   .active-focus-container {
-    margin-top: 0.6rem;
+    margin-top: 0.45rem;
   }
 }
 
