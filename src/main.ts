@@ -311,6 +311,32 @@ function initApp(): void {
   const statsModalCurrentRound = document.getElementById('statsModalCurrentRound') as HTMLElement | null;
   const statsModalSessionsList = document.getElementById('statsModalSessionsList') as HTMLElement | null;
 
+  // Mobile View Switcher & Audio Touch Unlock
+  const mobileViewTabs = document.querySelectorAll<HTMLButtonElement>('.mobile-view-tab');
+  const workspaceGrid = document.getElementById('workspaceGrid') as HTMLElement | null;
+
+  if (workspaceGrid && !workspaceGrid.dataset.mobileView) {
+    workspaceGrid.dataset.mobileView = 'timer';
+  }
+
+  mobileViewTabs.forEach((tab) => {
+    tab.addEventListener('click', () => {
+      sound.unlock();
+      sound.playTick();
+      const view = tab.dataset.view || 'timer';
+      mobileViewTabs.forEach((t) => t.classList.toggle('active', t === tab));
+      if (workspaceGrid) {
+        workspaceGrid.dataset.mobileView = view;
+      }
+    });
+  });
+
+  const unlockAudioOnInteraction = () => {
+    sound.unlock();
+  };
+  window.addEventListener('pointerdown', unlockAudioOnInteraction, { passive: true, once: true });
+  window.addEventListener('touchstart', unlockAudioOnInteraction, { passive: true, once: true });
+
   let targetEndTime: number | null = null;
   let editingTaskId: string | null = null;
   let selectedThemeColor = settings.themeColor || 'peach';
@@ -516,10 +542,13 @@ function initApp(): void {
         timer.start();
         if (s.ambientSound !== 'none') {
           sound.startAmbient(s.ambientSound, s.ambientVolume);
+        } else {
+          sound.startKeepAlive();
         }
       } else {
         targetEndTime = null;
         sound.stopAmbient();
+        sound.stopKeepAlive();
         store.set({
           isRunning: false,
           currentMode: nextMode,
@@ -732,6 +761,9 @@ function initApp(): void {
                 <button class="task-focus-btn" data-focus-id="${task.id}">
                   ${task.id === state.activeTaskId ? 'Active' : 'Focus'}
                 </button>
+                <button class="task-edit-btn" data-edit-trigger-id="${task.id}" title="Edit task" aria-label="Edit task">
+                  <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                </button>
                 <button class="task-del-btn" data-del-id="${task.id}" title="Delete task" aria-label="Delete task">
                   <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
@@ -810,9 +842,11 @@ function initApp(): void {
     store.set({ isRunning: true });
     timer.start();
 
-    // Start ambient if configured
+    // Start ambient if configured, else keep audio session awake
     if (s.ambientSound !== 'none') {
       sound.startAmbient(s.ambientSound, s.ambientVolume);
+    } else {
+      sound.startKeepAlive();
     }
   }
 
@@ -824,6 +858,7 @@ function initApp(): void {
     targetEndTime = null;
     timer.stop();
     sound.stopAmbient();
+    sound.stopKeepAlive();
     store.set({ isRunning: false, remainingMs: remaining });
   }
 
@@ -831,6 +866,7 @@ function initApp(): void {
     sound.playTick();
     timer.stop();
     sound.stopAmbient();
+    sound.stopKeepAlive();
     targetEndTime = null;
     const s = store.get();
     const dur = getModeDurationMs(s.currentMode, s.settings);
@@ -857,6 +893,7 @@ function initApp(): void {
   function switchMode(newMode: TimerMode): void {
     timer.stop();
     sound.stopAmbient();
+    sound.stopKeepAlive();
     sound.playModeSwitch(newMode);
     targetEndTime = null;
     const s = store.get();
@@ -946,7 +983,9 @@ function initApp(): void {
       if (store.get().isRunning) {
         if (soundType === 'none') {
           sound.stopAmbient();
+          sound.startKeepAlive();
         } else {
+          sound.stopKeepAlive();
           sound.startAmbient(soundType, store.get().ambientVolume);
         }
       }
@@ -1055,27 +1094,28 @@ function initApp(): void {
     ApiClient.clearCompletedTasks().catch(() => {});
   });
 
-  // Task List Delegation (Checkbox, Edit, Focus, Delete)
-  taskList?.addEventListener('click', (e) => {
-    const target = e.target as HTMLElement;
-
-    // Checkbox toggle
-    const checkInput = target.closest('input[type="checkbox"]') as HTMLInputElement | null;
-    if (checkInput) {
+  // Task Checkbox Toggle via Native Change Event
+  taskList?.addEventListener('change', (e) => {
+    const target = e.target as HTMLInputElement;
+    if (target.type === 'checkbox') {
       sound.playPop();
-      const id = checkInput.dataset.id;
+      const id = target.dataset.id;
       if (id) {
-        if (checkInput.checked && particleEngine) {
-          const rect = checkInput.getBoundingClientRect();
+        if (target.checked && particleEngine) {
+          const rect = target.getBoundingClientRect();
           particleEngine.triggerBurst(rect.left + 10, rect.top + 10, 20);
         }
         store.set((s) => ({
-          tasks: s.tasks.map((t) => (t.id === id ? { ...t, completed: checkInput.checked } : t)),
+          tasks: s.tasks.map((t) => (t.id === id ? { ...t, completed: target.checked } : t)),
         }));
-        ApiClient.updateTask(id, { completed: checkInput.checked }).catch(() => {});
+        ApiClient.updateTask(id, { completed: target.checked }).catch(() => {});
       }
-      return;
     }
+  });
+
+  // Task List Delegation (Edit, Focus, Delete)
+  taskList?.addEventListener('click', (e) => {
+    const target = e.target as HTMLElement;
 
     // Focus target toggle
     const focusBtn = target.closest('[data-focus-id]') as HTMLElement | null;
@@ -1085,6 +1125,18 @@ function initApp(): void {
       store.set((s) => ({
         activeTaskId: s.activeTaskId === id ? null : (id ?? null),
       }));
+      return;
+    }
+
+    // Edit task trigger (mobile & accessibility)
+    const editBtn = target.closest('[data-edit-trigger-id]') as HTMLElement | null;
+    if (editBtn) {
+      sound.playTick();
+      const id = editBtn.dataset.editTriggerId;
+      if (id) {
+        editingTaskId = id;
+        renderTasks(store.get());
+      }
       return;
     }
 
@@ -1195,10 +1247,18 @@ function initApp(): void {
     }
   });
 
+  // Dialog scroll locking on mobile
+  [statsDialog, settingsDialog, shortcutsDialog].forEach((dialog) => {
+    dialog?.addEventListener('close', () => {
+      document.body.style.overflow = '';
+    });
+  });
+
   // Daily Stats Badge click -> Open Stats Summary Modal
   dailyStatsBadge?.addEventListener('click', () => {
     sound.playTick();
     refreshStats();
+    document.body.style.overflow = 'hidden';
     statsDialog?.showModal();
   });
 
@@ -1219,6 +1279,7 @@ function initApp(): void {
   // Settings Dialog
   const openSettings = () => {
     sound.playTick();
+    document.body.style.overflow = 'hidden';
     const { settings } = store.get();
     if (workDurationInput) workDurationInput.value = String(settings.workMin);
     if (shortBreakInput) shortBreakInput.value = String(settings.shortBreakMin);
@@ -1339,6 +1400,7 @@ function initApp(): void {
   // Shortcuts Dialog Wiring
   const openShortcuts = () => {
     sound.playTick();
+    document.body.style.overflow = 'hidden';
     shortcutsDialog?.showModal();
   };
   const closeShortcuts = () => {

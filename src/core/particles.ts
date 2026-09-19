@@ -45,6 +45,24 @@ export class ParticleEngine {
     this.mouse.x = -1000;
     this.mouse.y = -1000;
   };
+  private handleTouchStart = (e: TouchEvent) => {
+    const touch = e.touches[0];
+    if (touch) {
+      this.mouse.x = touch.clientX;
+      this.mouse.y = touch.clientY;
+    }
+  };
+  private handleTouchMove = (e: TouchEvent) => {
+    const touch = e.touches[0];
+    if (touch) {
+      this.mouse.x = touch.clientX;
+      this.mouse.y = touch.clientY;
+    }
+  };
+  private handleTouchEnd = () => {
+    this.mouse.x = -1000;
+    this.mouse.y = -1000;
+  };
   private handleVisibilityChange = () => {
     if (document.hidden) {
       this.pause();
@@ -105,6 +123,9 @@ export class ParticleEngine {
     window.addEventListener('resize', this.handleResize);
     window.addEventListener('mousemove', this.handleMouseMove);
     window.addEventListener('mouseleave', this.handleMouseLeave);
+    window.addEventListener('touchstart', this.handleTouchStart, { passive: true });
+    window.addEventListener('touchmove', this.handleTouchMove, { passive: true });
+    window.addEventListener('touchend', this.handleTouchEnd, { passive: true });
     document.addEventListener('visibilitychange', this.handleVisibilityChange);
 
     this.resume();
@@ -159,9 +180,14 @@ export class ParticleEngine {
   }
 
   resize(): void {
-    this.dpr = window.devicePixelRatio || 1;
+    this.dpr = Math.min(window.devicePixelRatio || 1, 2);
     this.width = window.innerWidth;
     this.height = window.innerHeight;
+
+    // Throttle active particles on mobile devices to save battery
+    if (this.width <= 680) {
+      this.activeCount = Math.min(this.activeCount, 25);
+    }
 
     this.canvas.width = this.width * this.dpr;
     this.canvas.height = this.height * this.dpr;
@@ -292,6 +318,9 @@ export class ParticleEngine {
     window.removeEventListener('resize', this.handleResize);
     window.removeEventListener('mousemove', this.handleMouseMove);
     window.removeEventListener('mouseleave', this.handleMouseLeave);
+    window.removeEventListener('touchstart', this.handleTouchStart);
+    window.removeEventListener('touchmove', this.handleTouchMove);
+    window.removeEventListener('touchend', this.handleTouchEnd);
     document.removeEventListener('visibilitychange', this.handleVisibilityChange);
   }
 }

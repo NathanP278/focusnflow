@@ -282,7 +282,7 @@ body {
   width: 100%;
   max-width: 1280px;
   min-height: 100dvh;
-  padding: max(0.75rem, env(safe-area-inset-top)) max(1.25rem, env(safe-area-inset-right)) 1.5rem max(1.25rem, env(safe-area-inset-left));
+  padding: max(0.75rem, env(safe-area-inset-top)) max(1.25rem, env(safe-area-inset-right)) max(1.5rem, env(safe-area-inset-bottom)) max(1.25rem, env(safe-area-inset-left));
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
@@ -1539,11 +1539,14 @@ header {
   color: var(--accent);
 }
 
+.task-edit-btn,
 .task-del-btn {
   background: transparent;
   border: none;
   color: var(--text-dim);
-  padding: 0.3rem;
+  padding: 0.35rem;
+  min-width: 32px;
+  min-height: 32px;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -1554,6 +1557,20 @@ header {
     background var(--duration-base) var(--ease-out),
     transform var(--duration-fast) var(--ease-spring);
   -webkit-tap-highlight-color: transparent;
+}
+
+.task-edit-btn:hover {
+  color: var(--accent);
+  background: var(--accent-subtle);
+  transform: scale(1.1);
+}
+
+.task-edit-btn svg {
+  width: 14px;
+  height: 14px;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  fill: none;
 }
 
 .task-del-btn:hover {
@@ -1727,7 +1744,7 @@ header {
 /* ── Floating undo toast ─────────────────────────────────── */
 .undo-toast {
   position: fixed;
-  bottom: 1.75rem;
+  bottom: max(1.75rem, calc(0.75rem + env(safe-area-inset-bottom)));
   left: 50%;
   transform: translateX(-50%);
   background: var(--text-main);
@@ -2179,6 +2196,11 @@ dialog::backdrop {
   transition: background var(--duration-slow) var(--ease-in-out);
 }
 
+/* ── Mobile View Tabs ─────────────────────────────────────── */
+.mobile-view-tabs {
+  display: none;
+}
+
 /* ── Responsive breakpoints ──────────────────────────────── */
 
 /* Tablet / narrow desktop */
@@ -2196,9 +2218,9 @@ dialog::backdrop {
   }
 
   .app-container {
-    padding-left: 1rem;
-    padding-right: 1rem;
-    padding-bottom: 2rem;
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+    padding-bottom: max(2rem, env(safe-area-inset-bottom));
   }
 
   .shortcuts-grid {
@@ -2210,8 +2232,76 @@ dialog::backdrop {
   }
 }
 
-/* Small tablet */
+/* Small tablet & Mobile landscape/portrait */
 @media (max-width: 680px) {
+  /* Segmented navigation tabs for mobile */
+  .mobile-view-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.35rem;
+    padding: 0.3rem;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-full);
+    margin: 0.1rem 0;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .mobile-view-tab {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    padding: 0.55rem 0.9rem;
+    min-height: 42px;
+    font-size: 0.84rem;
+    font-weight: 600;
+    font-family: inherit;
+    color: var(--text-secondary);
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-full);
+    cursor: pointer;
+    transition: all var(--duration-fast) var(--ease-out);
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .mobile-view-tab.active {
+    background: var(--accent);
+    color: #FFFFFF;
+    box-shadow: 0 2px 8px var(--accent-glow);
+  }
+
+  .mobile-view-tab svg {
+    flex-shrink: 0;
+  }
+
+  /* Segmented view switching on mobile */
+  .workspace-grid[data-mobile-view="timer"] .productivity-panel {
+    display: none !important;
+  }
+
+  .workspace-grid[data-mobile-view="tasks"] .focus-panel {
+    display: none !important;
+  }
+
+  /* Prevent iOS Safari 16px auto-zoom */
+  .task-input,
+  .task-edit-input,
+  .setting-input,
+  .setting-select {
+    font-size: 16px !important;
+  }
+
+  .input-hint-kbd {
+    display: none;
+  }
+
+  .ambient-slider-row input[type="range"]::-webkit-slider-thumb {
+    width: 22px;
+    height: 22px;
+  }
+
   .ambient-selector {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -2233,13 +2323,23 @@ dialog::backdrop {
   .stats-overview-grid {
     grid-template-columns: repeat(3, 1fr);
   }
+
+  .modal-card {
+    width: min(440px, 94vw);
+    padding: 1.4rem 1.2rem;
+  }
+
+  .settings-scroll-area {
+    max-height: min(52vh, 320px);
+  }
 }
 
 /* Mobile */
 @media (max-width: 520px) {
   .app-container {
-    padding-left: 0.75rem;
-    padding-right: 0.75rem;
+    padding-left: max(0.75rem, env(safe-area-inset-left));
+    padding-right: max(0.75rem, env(safe-area-inset-right));
+    padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
     gap: 0.6rem;
   }
 
@@ -2248,12 +2348,12 @@ dialog::backdrop {
   }
 
   .header-controls {
-    gap: 0.3rem;
+    gap: 0.35rem;
   }
 
   .icon-btn {
-    width: 38px;
-    height: 38px;
+    width: 42px;
+    height: 42px;
   }
 
   .time-digits {
@@ -2278,13 +2378,35 @@ dialog::backdrop {
   }
 
   .quick-adjust-btn {
-    padding: 0.35rem 0.7rem;
-    font-size: 0.74rem;
+    padding: 0.45rem 0.75rem;
+    min-height: 40px;
+    font-size: 0.76rem;
   }
 
   .mode-btn {
     font-size: 0.8rem;
-    padding: 0.48rem 0.55rem;
+    padding: 0.5rem 0.6rem;
+    min-height: 40px;
+  }
+
+  .filter-tab {
+    min-height: 38px;
+    padding: 0.4rem 0.65rem;
+  }
+
+  .clear-completed-btn {
+    min-height: 38px;
+  }
+
+  .task-edit-btn,
+  .task-del-btn {
+    min-width: 38px;
+    min-height: 38px;
+  }
+
+  .task-checkbox-wrap {
+    min-width: 38px;
+    min-height: 38px;
   }
 
   .card {
@@ -2297,7 +2419,8 @@ dialog::backdrop {
   }
 
   .stats-overview-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: 1fr;
+    gap: 0.6rem;
   }
 
   .shortcuts-bar {
@@ -2317,8 +2440,8 @@ dialog::backdrop {
   }
 
   .icon-btn {
-    width: 36px;
-    height: 36px;
+    width: 38px;
+    height: 38px;
   }
 
   .icon-btn svg {

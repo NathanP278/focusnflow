@@ -10,11 +10,26 @@ def run_tests():
         console_errors = []
         page.on("console", lambda msg: console_errors.append(msg.text) if msg.type == "error" else None)
         page.on("pageerror", lambda err: console_errors.append(str(err)))
+        page.on("response", lambda res: print(f"HTTP {res.status} on {res.url}") if res.status >= 400 else None)
 
         print("Navigating to http://localhost:3000...")
         page.goto("http://localhost:3000", wait_until="domcontentloaded")
         page.wait_for_selector("#timeDigits")
-        time.sleep(1)
+        time.sleep(0.5)
+
+        # Clear any prior leftover tasks to ensure test isolation
+        page.evaluate("""async () => {
+            try {
+                localStorage.clear();
+                const res = await fetch('/api/tasks');
+                const tasks = await res.json();
+                for (const t of tasks) {
+                    await fetch(`/api/tasks/${t.id}`, { method: 'DELETE' });
+                }
+            } catch {}
+        }""")
+        page.reload(wait_until="domcontentloaded")
+        time.sleep(0.5)
 
         # 1. Check title, time digits, and verify Undo toast is hidden on load (Fix 1)
         title = page.title()
@@ -242,7 +257,11 @@ def run_tests():
                 return [p[0], p[1], p[2], p[3]];
             }}""")
 
-        # Currently in dark theme: background is #0E1116
+        # Ensure dark theme for dark pixel reading
+        while page.locator("html").get_attribute("data-theme") != "dark":
+            page.locator("#themeToggleBtn").click()
+            time.sleep(0.2)
+
         dark_pixel = get_pip_pixel(4, 4)
         print(f"PiP dark mode pixel at (4,4): {dark_pixel}")
         assert dark_pixel[0] < 40 and dark_pixel[1] < 40 and dark_pixel[2] < 40, f"Expected dark bg, got {dark_pixel}"
@@ -290,7 +309,7 @@ def run_tests():
         page.locator("button[data-sound='rain']").click()
         time.sleep(0.2)
         page.evaluate("() => { const s = document.getElementById('ambientVolSlider'); s.value = '0.65'; s.dispatchEvent(new Event('input')); }")
-        time.sleep(0.2)
+        time.sleep(0.5)
 
         # Reload page
         print("Reloading page to test state persistence...")
@@ -315,8 +334,146 @@ def run_tests():
         page.screenshot(path="e2e-screenshot.png", full_page=True)
         print("E2E Screenshot captured: e2e-screenshot.png")
 
+        # Run Mobile Test Suite
+        run_mobile_tests(browser)
+
         browser.close()
-        print("ALL E2E PLAYWRIGHT TESTS PASSED!")
+        print("\n==========================================")
+        print("ALL DESKTOP & MOBILE PLAYWRIGHT TESTS PASSED!")
+        print("==========================================")
+
+def run_mobile_tests(browser):
+    print("\n--- STARTING MOBILE SUITE (iPhone 14 Emulation: 390x844 Touch) ---")
+    context = browser.new_context(
+        viewport={"width": 390, "height": 844},
+        user_agent="Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1",
+        has_touch=True,
+        is_mobile=True,
+    )
+    page = context.new_page()
+
+    mobile_errors = []
+    page.on("console", lambda msg: mobile_errors.append(msg.text) if msg.type == "error" else None)
+    page.on("pageerror", lambda err: mobile_errors.append(str(err)))
+
+    page.goto("http://localhost:3000", wait_until="domcontentloaded")
+    page.wait_for_selector("#timeDigits")
+    time.sleep(0.5)
+
+    # 1. Viewport and Mobile Web App Meta tags
+    viewport_meta = page.locator("meta[name='viewport']").get_attribute("content")
+    print(f"Mobile viewport meta: {viewport_meta}")
+    assert "viewport-fit=cover" in viewport_meta, "viewport-fit=cover must be present"
+
+    theme_color_tags = page.locator("meta[name='theme-color']").count()
+    assert theme_color_tags >= 1, "theme-color meta must be present"
+
+    app_capable = page.locator("meta[name='apple-mobile-web-app-capable']").get_attribute("content")
+    assert app_capable == "yes", "apple-mobile-web-app-capable must be yes"
+
+    # 2. Assert zero horizontal page overflow
+    no_overflow = page.evaluate("() => document.documentElement.scrollWidth <= window.innerWidth")
+    print(f"Zero horizontal page overflow: {no_overflow}")
+    assert no_overflow, "Page must not have horizontal scrollbar on mobile"
+
+    # 3. Header controls visibility on mobile
+    assert page.locator(".header-secondary-controls").is_hidden(), "Secondary controls (PiP/Shortcuts) must be hidden on mobile"
+    haptic_btn = page.locator("#hapticToggleBtn")
+    assert haptic_btn.is_visible(), "Haptic toggle button must be visible on mobile"
+    sound_btn = page.locator("#soundToggleBtn")
+    assert sound_btn.is_visible(), "Sound toggle button must be visible on mobile"
+
+    # 4. Touch Target Sizes (>= 38px on mobile)
+    sound_box = sound_btn.bounding_box()
+    assert sound_box["width"] >= 38 and sound_box["height"] >= 38, f"Sound button touch target too small: {sound_box}"
+    haptic_box = haptic_btn.bounding_box()
+    assert haptic_box["width"] >= 38 and haptic_box["height"] >= 38, f"Haptic button touch target too small: {haptic_box}"
+
+    # 5. Mobile View Switcher Tabs & Single-Screen Viewport Switching
+    mobile_tabs = page.locator("#mobileViewTabs")
+    assert mobile_tabs.is_visible(), "Mobile view switcher tabs must be visible on mobile"
+
+    # Default is timer view
+    assert page.locator(".focus-panel").is_visible(), "Focus panel should be visible in timer view"
+    assert page.locator(".productivity-panel").is_hidden(), "Productivity panel should be hidden in timer view"
+
+    # Switch to tasks view
+    page.locator("#tabViewTasks").click()
+    time.sleep(0.3)
+    assert page.locator(".productivity-panel").is_visible(), "Productivity panel should be visible in tasks view"
+    assert page.locator(".focus-panel").is_hidden(), "Focus panel should be hidden in tasks view"
+
+    # 6. Mobile Task Inline Editing via .task-edit-btn
+    task_input = page.locator("#taskInput")
+    task_input.fill("Mobile Touch Task")
+    page.locator(".task-add-btn").click()
+    time.sleep(0.3)
+
+    mobile_task = page.locator(".task-item").first
+    assert "Mobile Touch Task" in mobile_task.locator(".task-title").text_content()
+
+    edit_btn = mobile_task.locator(".task-edit-btn")
+    assert edit_btn.is_visible(), "Mobile edit button (pencil) must be visible in task actions"
+    edit_box = edit_btn.bounding_box()
+    assert edit_box["width"] >= 36 and edit_box["height"] >= 36, f"Edit button target too small: {edit_box}"
+
+    # Click edit button to open inline edit
+    edit_btn.click()
+    time.sleep(0.2)
+    edit_input = mobile_task.locator(".task-edit-input")
+    assert edit_input.is_visible(), "Inline edit input must appear on edit button click"
+
+    # Verify iOS auto-zoom prevention: input font-size must be 16px
+    edit_font_size = page.evaluate("() => window.getComputedStyle(document.querySelector('.task-edit-input')).fontSize")
+    print(f"Mobile edit input font-size: {edit_font_size}")
+    assert edit_font_size == "16px", f"Expected 16px font-size to prevent iOS zoom, got {edit_font_size}"
+
+    edit_input.fill("Updated Mobile Touch Task")
+    edit_input.press("Enter")
+    time.sleep(0.3)
+    assert "Updated Mobile Touch Task" in mobile_task.locator(".task-title").text_content()
+
+    # 7. Switch back to timer view & test mobile start/pause
+    page.locator("#tabViewTimer").click()
+    time.sleep(0.3)
+    assert page.locator(".focus-panel").is_visible()
+
+    # Test touch audio unlock and start
+    page.locator("#toggleBtn").click()
+    time.sleep(0.3)
+    assert page.locator("#toggleBtnText").text_content() == "Pause"
+    page.locator("#toggleBtn").click()
+    time.sleep(0.2)
+    assert page.locator("#toggleBtnText").text_content() == "Start"
+
+    # 8. Test Mobile Modal Sheet & Body Scroll Lock
+    page.locator("#settingsBtn").click()
+    time.sleep(0.3)
+    settings_dialog = page.locator("#settingsDialog")
+    assert settings_dialog.is_visible()
+
+    body_overflow = page.evaluate("() => document.body.style.overflow")
+    print(f"Body overflow with dialog open: {body_overflow}")
+    assert body_overflow == "hidden", "Body scroll must be locked when dialog is open"
+
+    page.locator("#closeSettingsBtn").click()
+    time.sleep(0.2)
+    assert not settings_dialog.is_visible()
+    body_overflow_after = page.evaluate("() => document.body.style.overflow")
+    print(f"Body overflow after dialog close: '{body_overflow_after}'")
+    assert body_overflow_after == "", "Body scroll lock must be released on close"
+
+    # 9. Verify zero console errors on mobile
+    print(f"Total mobile console errors: {len(mobile_errors)}")
+    if mobile_errors:
+        print("Mobile Errors:", mobile_errors)
+    assert len(mobile_errors) == 0, f"Encountered mobile console errors: {mobile_errors}"
+
+    # Screenshot for mobile proof
+    page.screenshot(path="e2e-mobile-screenshot.png", full_page=True)
+    print("Mobile E2E Screenshot captured: e2e-mobile-screenshot.png")
+    context.close()
+    print("ALL MOBILE E2E PLAYWRIGHT TESTS PASSED!")
 
 if __name__ == "__main__":
     run_tests()

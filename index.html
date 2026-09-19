@@ -2,7 +2,12 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#F9F7F4" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#09090D" media="(prefers-color-scheme: dark)">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Focus & Flow">
   <title>25:00 - Focus | Focus & Flow Workspace</title>
   <link rel="icon" id="dynamicFavicon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='14' fill='%23FF8A65'/></svg>">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -47,6 +52,14 @@
               <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
             </svg>
           </button>
+          <button id="hapticToggleBtn" class="icon-btn active" title="Toggle Haptics" aria-label="Toggle haptic feedback">
+            <svg viewBox="0 0 24 24">
+              <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+              <line x1="12" y1="18" x2="12.01" y2="18"/>
+              <path d="M2 8v8"/>
+              <path d="M22 8v8"/>
+            </svg>
+          </button>
           <button id="zenToggleBtn" class="icon-btn" title="Zen Mode (Z)" aria-label="Toggle zen focus mode">
             <svg id="zenIcon" viewBox="0 0 24 24">
               <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
@@ -73,16 +86,8 @@
           </button>
         </div>
 
-        <!-- Secondary controls — hidden on mobile -->
+        <!-- Secondary controls — hidden on mobile <= 520px -->
         <div class="header-secondary-controls">
-          <button id="hapticToggleBtn" class="icon-btn active" title="Toggle Haptics" aria-label="Toggle haptic feedback">
-            <svg viewBox="0 0 24 24">
-              <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
-              <line x1="12" y1="18" x2="12.01" y2="18"/>
-              <path d="M2 8v8"/>
-              <path d="M22 8v8"/>
-            </svg>
-          </button>
           <button id="pipToggleBtn" class="icon-btn" title="Picture-in-Picture (P)" aria-label="Toggle picture-in-picture timer">
             <svg viewBox="0 0 24 24">
               <rect x="2" y="4" width="20" height="16" rx="2" ry="2"/>
@@ -104,6 +109,18 @@
         </div>
       </div>
     </header>
+
+    <!-- Mobile View Switcher (Visible only on mobile) -->
+    <nav class="mobile-view-tabs" id="mobileViewTabs" aria-label="Mobile workspace view">
+      <button class="mobile-view-tab active" data-view="timer" id="tabViewTimer">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+        <span>Timer</span>
+      </button>
+      <button class="mobile-view-tab" data-view="tasks" id="tabViewTasks">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        <span>Tasks &amp; Log</span>
+      </button>
+    </nav>
 
     <!-- Expansive 2-Column Studio Grid (No Dead Space) -->
     <div class="workspace-grid" id="workspaceGrid">

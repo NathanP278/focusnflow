@@ -3,6 +3,18 @@ import type { SoundPreset } from './types';
 export class SoundEngine {
   private audioCtx: AudioContext | null = null;
   private soundEnabled = true;
+  private silentAudio: HTMLAudioElement | null = null;
+  private keepAliveActive = false;
+
+  constructor() {
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+          this.ensureContext();
+        }
+      });
+    }
+  }
 
   setSoundEnabled(enabled: boolean): void {
     this.soundEnabled = enabled;
@@ -25,7 +37,10 @@ export class SoundEngine {
       }
     }
 
-    if (this.audioCtx && this.audioCtx.state === 'suspended') {
+    if (
+      this.audioCtx &&
+      (this.audioCtx.state === 'suspended' || (this.audioCtx.state as string) === 'interrupted')
+    ) {
       this.audioCtx.resume().catch(() => {});
     }
 
@@ -33,7 +48,55 @@ export class SoundEngine {
   }
 
   unlock(): void {
+    const ctx = this.ensureContext();
+    if (!ctx) return;
+
+    // Play silent buffer node to activate WebKit audio pipeline on mobile
+    try {
+      const buffer = ctx.createBuffer(1, 1, 22050);
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(ctx.destination);
+      source.start(0);
+    } catch {}
+
+    // Prepare HTML5 silent audio element to prevent mobile browser audio sleep
+    if (!this.silentAudio && typeof Audio !== 'undefined') {
+      try {
+        this.silentAudio = new Audio(
+          'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA'
+        );
+        this.silentAudio.loop = true;
+        (this.silentAudio as any).playsInline = true;
+        this.silentAudio.volume = 0.001;
+      } catch {}
+    }
+
+    if (this.silentAudio && !this.keepAliveActive) {
+      this.silentAudio.play().then(() => {
+        if (!this.keepAliveActive && this.silentAudio) {
+          this.silentAudio.pause();
+        }
+      }).catch(() => {});
+    }
+  }
+
+  startKeepAlive(): void {
+    this.keepAliveActive = true;
+    if (!this.soundEnabled) return;
     this.ensureContext();
+    if (this.silentAudio) {
+      this.silentAudio.play().catch(() => {});
+    }
+  }
+
+  stopKeepAlive(): void {
+    this.keepAliveActive = false;
+    if (this.silentAudio) {
+      try {
+        this.silentAudio.pause();
+      } catch {}
+    }
   }
 
   playTick(): void {
@@ -470,6 +533,8 @@ export class SoundEngine {
   }
 
   destroy(): void {
+    this.stopKeepAlive();
+    this.silentAudio = null;
     if (this.audioCtx && this.audioCtx.state !== 'closed') {
       this.audioCtx.close();
       this.audioCtx = null;
