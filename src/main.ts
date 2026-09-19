@@ -408,6 +408,7 @@ function initApp(): void {
     if (!card) return;
     let startY = 0, currentY = 0, dragging = false;
     card.addEventListener('pointerdown', (e) => {
+      if (window.innerWidth > 680 || window.innerHeight <= 500) return;
       if (e.offsetY > 60) return;
       dragging = true; startY = e.clientY;
       card.style.transition = 'none'; card.style.willChange = 'transform';
@@ -429,10 +430,7 @@ function initApp(): void {
     });
   };
 
-  const sheetMq = window.matchMedia('(max-width: 680px)');
-  if (sheetMq.matches) {
-    document.querySelectorAll<HTMLDialogElement>('dialog').forEach(setupBottomSheetDrag);
-  }
+  document.querySelectorAll<HTMLDialogElement>('dialog').forEach(setupBottomSheetDrag);
 
   const unlockAudioOnInteraction = () => {
     sound.unlock();

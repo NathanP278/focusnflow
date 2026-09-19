@@ -17,8 +17,7 @@ server/*.db-wal
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-e2e-screenshot.png
-e2e-mobile-screenshot.png
+e2e-*.png
 
 # System & IDE files
 .DS_Store

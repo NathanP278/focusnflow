@@ -478,7 +478,10 @@ def run_mobile_tests(browser):
         f"T1: Tab bar not at bottom. y={tab_box['y']}, h={tab_box['height']}, viewport={viewport_height}"
     tab_position = page.evaluate("() => getComputedStyle(document.querySelector('.mobile-view-tabs')).position")
     assert tab_position == "fixed", f"T1: Tab bar must be position:fixed, got {tab_position}"
-    print(f"T1 PASS: Tab bar fixed at bottom (y={tab_box['y']:.0f}, h={tab_box['height']:.0f})")
+    app_padding_bottom = page.evaluate("() => parseFloat(getComputedStyle(document.querySelector('.app-container')).paddingBottom)")
+    assert app_padding_bottom >= tab_box["height"], \
+        f"T1: App container padding-bottom ({app_padding_bottom}px) must be >= tab bar height ({tab_box['height']}px)"
+    print(f"T1 PASS: Tab bar fixed at bottom (y={tab_box['y']:.0f}, h={tab_box['height']:.0f}), clearance={app_padding_bottom:.0f}px")
 
     # ── T2: Each tab meets 44px minimum height ─────────────────────────
     for i, tab in enumerate(page.locator(".mobile-view-tab").all()):
@@ -607,7 +610,6 @@ def run_mobile_tests(browser):
     se_page.wait_for_selector("#timeDigits")
     time.sleep(0.5)
     timer_card_bottom = se_page.evaluate("() => document.querySelector('.timer-card').getBoundingClientRect().bottom")
-    # Allow 100px grace for safe-area + tab bar clearance
     assert timer_card_bottom <= 767, \
         f"T13: Timer card extends too far on iPhone SE (bottom={timer_card_bottom:.0f}, viewport=667)"
     se_scroll = se_page.evaluate("() => document.documentElement.scrollWidth")
@@ -615,6 +617,168 @@ def run_mobile_tests(browser):
     se_page.screenshot(path="e2e-iphonese-screenshot.png", full_page=True)
     print(f"T13 PASS: iPhone SE timer card at y={timer_card_bottom:.0f}, no overflow")
     se_ctx.close()
+
+    # ── T14: Ultra-compact mobile (320x658 — Galaxy Fold cover / iPhone SE 1st gen)
+    print("\n--- T14: Ultra-compact 320x658 ---")
+    u_ctx = browser.new_context(
+        viewport={"width": 320, "height": 658},
+        user_agent="Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1",
+        has_touch=True,
+        is_mobile=True,
+    )
+    u_page = u_ctx.new_page()
+    u_page.goto("http://localhost:3000", wait_until="domcontentloaded")
+    u_page.wait_for_selector("#timeDigits")
+    time.sleep(0.5)
+
+    u_scroll = u_page.evaluate("() => document.documentElement.scrollWidth")
+    assert u_scroll <= 322, f"T14: 320px has horizontal overflow (scrollWidth={u_scroll})"
+    header_box = u_page.locator("header").bounding_box()
+    assert header_box["width"] <= 322, f"T14: Header wider than 320px ({header_box['width']:.0f}px)"
+
+    # Switch to tasks view and add task
+    u_page.locator("#tabViewTasks").click()
+    time.sleep(0.3)
+    u_input = u_page.locator("#taskInput")
+    u_input.fill("Ultra-compact 320px Task Item")
+    u_page.locator(".task-add-btn").click()
+    time.sleep(0.3)
+
+    task_title_w = u_page.evaluate("() => document.querySelector('.task-title').getBoundingClientRect().width")
+    print(f"T14: 320px task title width: {task_title_w:.0f}px")
+    assert task_title_w >= 100, f"T14: Task title crushed below 100px: {task_title_w:.0f}px"
+
+    u_scroll_tasks = u_page.evaluate("() => document.documentElement.scrollWidth")
+    assert u_scroll_tasks <= 322, f"T14: Tasks view horizontal overflow (scrollWidth={u_scroll_tasks})"
+    u_page.screenshot(path="e2e-320px-screenshot.png", full_page=True)
+    print("T14 PASS: 320px ultra-compact layout fits cleanly without overflow")
+    u_ctx.close()
+
+    # ── T15: Tall Android (412x915 — Pixel 7 / Galaxy S24) ────────────
+    print("\n--- T15: Android Tall 412x915 ---")
+    a_ctx = browser.new_context(
+        viewport={"width": 412, "height": 915},
+        user_agent="Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Mobile Safari/537.36",
+        has_touch=True,
+        is_mobile=True,
+    )
+    a_page = a_ctx.new_page()
+    a_page.goto("http://localhost:3000", wait_until="domcontentloaded")
+    a_page.wait_for_selector("#timeDigits")
+    time.sleep(0.5)
+
+    a_scroll = a_page.evaluate("() => document.documentElement.scrollWidth")
+    assert a_scroll <= 414, f"T15: 412px has horizontal overflow (scrollWidth={a_scroll})"
+    a_tab = a_page.locator(".mobile-view-tabs").bounding_box()
+    assert a_tab["y"] + a_tab["height"] >= 915 - 50, f"T15: Tab bar not at bottom: {a_tab}"
+    a_page.screenshot(path="e2e-pixel7-screenshot.png", full_page=True)
+    print(f"T15 PASS: 412x915 Android layout validated")
+    a_ctx.close()
+
+    # ── T16: Landscape Phone (844x390 — iPhone 14 Landscape) ───────────
+    print("\n--- T16: Landscape Phone 844x390 ---")
+    ls_ctx = browser.new_context(
+        viewport={"width": 844, "height": 390},
+        user_agent="Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1",
+        has_touch=True,
+        is_mobile=True,
+    )
+    ls_page = ls_ctx.new_page()
+    ls_page.goto("http://localhost:3000", wait_until="domcontentloaded")
+    ls_page.wait_for_selector("#timeDigits")
+    time.sleep(0.5)
+
+    ls_scroll = ls_page.evaluate("() => document.documentElement.scrollWidth")
+    assert ls_scroll <= 846, f"T16: Landscape has horizontal overflow (scrollWidth={ls_scroll})"
+
+    # Assert mobile tabs are visible and positioned on left rail
+    tabs_loc = ls_page.locator(".mobile-view-tabs")
+    assert tabs_loc.is_visible(), "T16: Mobile view tabs must be visible in landscape phone mode"
+    tabs_box = tabs_loc.bounding_box()
+    assert tabs_box["x"] <= 5, f"T16: Tab rail must be pinned to left edge, got x={tabs_box['x']}"
+    assert tabs_box["height"] >= 380, f"T16: Tab rail height should cover viewport, got {tabs_box['height']}"
+
+    # Verify single-column workspace in landscape phone
+    grid_cols = ls_page.evaluate("() => getComputedStyle(document.querySelector('.workspace-grid')).gridTemplateColumns")
+    assert " " not in grid_cols.strip(), f"T16: Workspace grid must be 1 column in landscape phone, got '{grid_cols}'"
+
+    # Open Settings Dialog and verify it fits on screen without top/bottom cutoff
+    ls_page.locator("#settingsBtn").click()
+    time.sleep(0.4)
+    settings_sheet = ls_page.locator("#settingsDialog .modal-card")
+    assert settings_sheet.is_visible(), "T16: Settings sheet must be visible in landscape"
+    sheet_box = settings_sheet.bounding_box()
+    assert sheet_box["y"] >= 0, f"T16: Settings sheet top clipped offscreen: y={sheet_box['y']}"
+    assert sheet_box["y"] + sheet_box["height"] <= 392, \
+        f"T16: Settings sheet bottom clipped offscreen: bottom={sheet_box['y'] + sheet_box['height']}"
+    close_btn = ls_page.locator("#closeSettingsBtn")
+    assert close_btn.is_visible(), "T16: Close settings button must be visible in landscape"
+    close_btn.click()
+    time.sleep(0.3)
+
+    # Open Stats Dialog and verify it fits on screen
+    ls_page.locator("#dailyStatsBadge").click()
+    time.sleep(0.4)
+    stats_sheet = ls_page.locator("#statsDialog .modal-card")
+    assert stats_sheet.is_visible(), "T16: Stats sheet must be visible in landscape"
+    stats_sheet_box = stats_sheet.bounding_box()
+    assert stats_sheet_box["y"] >= 0, f"T16: Stats sheet top clipped: y={stats_sheet_box['y']}"
+    assert stats_sheet_box["y"] + stats_sheet_box["height"] <= 392, \
+        f"T16: Stats sheet bottom clipped: bottom={stats_sheet_box['y'] + stats_sheet_box['height']}"
+    ok_btn = ls_page.locator("#okStatsBtn")
+    assert ok_btn.is_visible(), "T16: Ok stats button must be visible in landscape"
+    ok_btn.click()
+    time.sleep(0.3)
+
+    ls_page.screenshot(path="e2e-landscape-screenshot.png", full_page=True)
+    print("T16 PASS: 844x390 landscape layout, side rail, and slide-over sheets validated")
+    ls_ctx.close()
+
+    # ── T17: Wide Landscape Phone (915x412 — Pixel 7 Landscape) ────────
+    print("\n--- T17: Wide Landscape 915x412 ---")
+    wls_ctx = browser.new_context(
+        viewport={"width": 915, "height": 412},
+        user_agent="Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Mobile Safari/537.36",
+        has_touch=True,
+        is_mobile=True,
+    )
+    wls_page = wls_ctx.new_page()
+    wls_page.goto("http://localhost:3000", wait_until="domcontentloaded")
+    wls_page.wait_for_selector("#timeDigits")
+    time.sleep(0.5)
+
+    wls_scroll = wls_page.evaluate("() => document.documentElement.scrollWidth")
+    assert wls_scroll <= 917, f"T17: Wide landscape has horizontal overflow (scrollWidth={wls_scroll})"
+    wls_tabs = wls_page.locator(".mobile-view-tabs")
+    assert wls_tabs.is_visible(), "T17: Side rail tabs must be visible on 915x412"
+    wls_ctx.close()
+    print("T17 PASS: 915x412 wide landscape layout validated")
+
+    # ── T18: Tablet Portrait (768x1024 — iPad Mini / Air Portrait) ─────
+    print("\n--- T18: Tablet Portrait 768x1024 ---")
+    tab_ctx = browser.new_context(
+        viewport={"width": 768, "height": 1024},
+        user_agent="Mozilla/5.0 (iPad; CPU OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1",
+        has_touch=True,
+        is_mobile=True,
+    )
+    tab_page = tab_ctx.new_page()
+    tab_page.goto("http://localhost:3000", wait_until="domcontentloaded")
+    tab_page.wait_for_selector("#timeDigits")
+    time.sleep(0.5)
+
+    tab_scroll = tab_page.evaluate("() => document.documentElement.scrollWidth")
+    assert tab_scroll <= 770, f"T18: Tablet portrait has horizontal overflow (scrollWidth={tab_scroll})"
+
+    # Tablet shows both panels in 2-column grid and hides mobile view tabs
+    assert tab_page.locator(".focus-panel").is_visible(), "T18: Focus panel must be visible on tablet"
+    assert tab_page.locator(".productivity-panel").is_visible(), "T18: Productivity panel must be visible on tablet"
+    tab_nav = tab_page.locator(".mobile-view-tabs")
+    assert tab_nav.is_hidden(), "T18: Bottom mobile tabs must be hidden on tablet"
+
+    tab_page.screenshot(path="e2e-tablet-screenshot.png", full_page=True)
+    print("T18 PASS: 768x1024 tablet portrait 2-column layout validated")
+    tab_ctx.close()
 
     print("\n=========================================")
     print("ALL MOBILE E2E PLAYWRIGHT TESTS PASSED!")
